@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Nature Challenge 2025 — City Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-deep: #1a3a2a;
+    --green-mid: #2d6a4f;
+    --green-light: #52b788;
+    --green-pale: #d8f3dc;
+    --cream: #f8f4ee;
+    --sand: #e8e0d4;
+    --ink: #1a1a18;
+    --muted: #6b7160;
+    --accent: #e76f51;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(82,183,136,0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(45,106,79,0.10) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Header */
+  header {
+    padding: 64px 0 48px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--green-mid);
+    margin-bottom: 20px;
+  }
+
+  .eyebrow::before, .eyebrow::after {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 1px;
+    background: var(--green-light);
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 6vw, 54px);
+    line-height: 1.1;
+    color: var(--green-deep);
+    margin-bottom: 16px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--green-mid);
+  }
+
+  .subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Search */
+  .search-wrap {
+    position: relative;
+    margin: 40px 0 12px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--green-light);
+    pointer-events: none;
+  }
+
+  #search {
+    width: 100%;
+    padding: 18px 18px 18px 50px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--ink);
+    background: white;
+    border: 1.5px solid var(--sand);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(26,58,42,0.06);
+  }
+
+  #search:focus {
+    border-color: var(--green-light);
+    box-shadow: 0 0 0 4px rgba(82,183,136,0.15), 0 2px 12px rgba(26,58,42,0.06);
+  }
+
+  #search::placeholder { color: #bbb; }
+
+  .search-hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  /* Status */
+  #status {
+    text-align: center;
+    padding: 16px;
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 24px;
+  }
+
+  /* Results */
+  #results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 80px;
+  }
+
+  .result-card {
+    background: white;
+    border: 1.5px solid var(--sand);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    animation: fadeUp 0.25s ease both;
+    box-shadow: 0 1px 4px rgba(26,58,42,0.04);
+  }
+
+  .result-card:hover {
+    border-color: var(--green-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(26,58,42,0.1);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card:nth-child(2) { animation-delay: 0.04s; }
+  .result-card:nth-child(3) { animation-delay: 0.08s; }
+  .result-card:nth-child(4) { animation-delay: 0.12s; }
+  .result-card:nth-child(5) { animation-delay: 0.16s; }
+
+  .card-body { flex: 1; min-width: 0; }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--green-deep);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .card-aliases {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-aliases strong {
+    color: var(--green-mid);
+    font-weight: 500;
+  }
+
+  .card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--green-mid);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.2s;
+    white-space: nowrap;
+    width: 100%;
+  }
+
+  .card-link:hover { background: var(--green-deep); }
+
+  .card-link.secondary {
+    background: var(--green-pale);
+    color: var(--green-mid);
+  }
+
+  .card-link.secondary:hover {
+    background: var(--green-mid);
+    color: white;
+  }
+
+  .card-join-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.4;
+    max-width: 120px;
+  }
+
+  /* No results */
+  .no-results {
+    text-align: center;
+    padding: 32px 0 0;
+    color: var(--muted);
+  }
+
+  .no-results .emoji { font-size: 40px; margin-bottom: 16px; }
+  .no-results > p { font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
+  .no-results a { color: var(--green-mid); }
+
+  .global-cta {
+    margin-top: 28px;
+    background: white;
+    border: 1.5px solid var(--sand);
+    border-radius: 12px;
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(26,58,42,0.04);
+  }
+
+  .global-cta .cta-eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--green-light);
+    margin-bottom: 10px;
+  }
+
+  .global-cta h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--green-deep);
+    margin-bottom: 8px;
+  }
+
+  .global-cta p {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.6;
+    max-width: 380px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .global-cta .btn-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .global-cta .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    background: var(--green-mid);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+
+  .global-cta .btn:hover { background: var(--green-deep); }
+
+  .global-cta .btn-text {
+    font-size: 13px;
+    color: var(--green-mid);
+    text-decoration: none;
+  }
+
+  .global-cta .btn-text:hover { text-decoration: underline; }
+
+  /* Count badge */
+  .count-badge {
+    display: inline-block;
+    background: var(--green-pale);
+    color: var(--green-mid);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 99px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Footer */
+  footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, var(--cream) 60%, transparent);
+    padding: 20px 24px 16px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  footer a { color: var(--green-mid); pointer-events: all; }
+
+  /* Loading dots */
+  .dots span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green-light);
+    margin: 0 3px;
+    animation: bounce 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  mark {
+    background: rgba(82,183,136,0.25);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="eyebrow">April 25–28, 2025</div>
+    <h1>Find your city in the<br><em>City Nature Challenge</em></h1>
+    <p class="subtitle">Search by city, neighborhood, or region to find your local project and join the global biodiversity count.</p>
+  </header>
+
+  <div class="search-wrap">
+    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" id="search" placeholder="Try "Oakland", "Melbourne", "Île de France"…" autocomplete="off" spellcheck="false">
+  </div>
+  <p class="search-hint">661 cities across 6 continents</p>
+
+  <div id="status">
+    <div class="dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<footer>
+  Data from <a href="https://www.inaturalist.org/projects/city-nature-challenge-2025" target="_blank">iNaturalist</a> · <a href="https://www.citynaturechallenge.org" target="_blank">citynaturechallenge.org</a>
+</footer>
+
+<script>
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSVqjsM-iOGXWhgTVh4XOVAZZszCA6Rw23xY30aYGLbq9F8gPWScQA2wCGunHKq38spxJxoru1qKop-/pub?output=csv";
+// Route through CORS proxy so the fetch works from any browser context
+const SHEET_URL = `https://corsproxy.io/?${encodeURIComponent(SHEET_CSV)}`;
+
+let allProjects = [];
+let searchTimeout;
+
+// Parse CSV (handles quoted fields with commas)
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  }).filter(r => r['Project Title']);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// Search logic
+function search(query) {
+  if (!query || query.length < 2) return [];
+  const q = query.toLowerCase().trim();
+  const results = [];
+
+  for (const p of allProjects) {
+    const title = (p['Project Title'] || '').toLowerCase();
+    const aliases = (p['City Aliases'] || '').toLowerCase();
+    const combined = title + ' ' + aliases;
+
+    // Score: exact word match scores higher than partial
+    let score = 0;
+    if (combined.includes(q)) score += 2;
+    if (title.includes(q)) score += 1;
+    // Word boundary match
+    const wordBoundary = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+    if (wordBoundary.test(combined)) score += 1;
+
+    if (score > 0) results.push({ project: p, score });
+  }
+
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 12)
+    .map(r => r.project);
+}
+
+function highlight(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+function renderResults(results, query) {
+  const el = document.getElementById('results');
+  const status = document.getElementById('status');
+
+  if (!query || query.length < 2) {
+    status.innerHTML = `<span style="color:var(--muted);font-size:14px;">Start typing to search ${allProjects.length} cities</span>`;
+    el.innerHTML = '';
+    return;
+  }
+
+  if (results.length === 0) {
+    status.innerHTML = '';
+    el.innerHTML = `
+      <div class="no-results">
+        <div class="emoji">🔍</div>
+        <p>No exact match for <strong>"${query}"</strong>. Try a broader search term, or your region or county name.</p>
+        <p style="font-size:13px;">You can also <a href="https://www.citynaturechallenge.org/participating-cities" target="_blank">browse the full city list</a> at citynaturechallenge.org.</p>
+        <div class="global-cta">
+          <div class="cta-eyebrow">Don't see your city?</div>
+          <h3>Join the Global Project</h3>
+          <p>No matter where you are in the world, you can participate in the City Nature Challenge by joining the global project on iNaturalist and logging observations April 25–28.</p>
+          <div class="btn-row">
+            <a href="https://www.inaturalist.org/projects/city-nature-challenge-2025-global-project" target="_blank" class="btn">
+              Join the Global Project
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </a>
+            <a href="https://www.inaturalist.org/signup" target="_blank" class="btn-text">New to iNaturalist? Create a free account →</a>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  status.innerHTML = `<span style="font-size:14px;color:var(--muted);">${results.length} result${results.length !== 1 ? 's' : ''} found</span>`;
+
+  el.innerHTML = results.map((p, i) => {
+    const title = p['Project Title'].replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+    const aliases = p['City Aliases'] || '';
+    const url = p['iNaturalist URL'] || '#';
+
+    // Show matching aliases
+    let aliasHtml = '';
+    if (aliases) {
+      const aliasPreview = aliases.split(',').slice(0, 6).join(', ');
+      aliasHtml = `<div class="card-aliases">Also covers: ${highlight(aliasPreview, query)}</div>`;
+    }
+
+    return `
+      <div class="result-card" style="animation-delay:${i * 0.04}s">
+        <div class="card-body">
+          <div class="card-title">${highlight(title, query)}</div>
+          ${aliasHtml}
+        </div>
+        <div class="card-actions">
+          <a href="${url}" target="_blank" class="card-link">
+            Join project
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+          </a>
+          <a href="https://www.inaturalist.org/signup" target="_blank" class="card-link secondary">
+            Create iNat account
+          </a>
+          <div class="card-join-hint">Free · takes 1 min</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Load data
+async function loadData() {
+  const status = document.getElementById('status');
+  try {
+    const res = await fetch(SHEET_URL);
+    if (!res.ok) throw new Error('Network error');
+    const text = await res.text();
+    allProjects = parseCSV(text);
+    status.innerHTML = `<span style="font-size:14px;color:var(--muted);">Ready — ${allProjects.length} cities loaded. Start typing to search.</span>`;
+  } catch (e) {
+    status.innerHTML = `<span style="color:#c0392b;font-size:14px;">⚠️ Couldn't load city data. <a href="https://www.inaturalist.org/projects/city-nature-challenge-2025" target="_blank">Browse directly on iNaturalist</a>.</span>`;
+  }
+}
+
+// Search input
+document.getElementById('search').addEventListener('input', e => {
+  clearTimeout(searchTimeout);
+  const query = e.target.value.trim();
+  searchTimeout = setTimeout(() => {
+    const results = search(query);
+    renderResults(results, query);
+  }, 150);
+});
+
+loadData();
+</script>
+</body>
+</html>
