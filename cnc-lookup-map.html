@@ -646,6 +646,7 @@ const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSVqjsM-iOGXW
 const SHEET_URL = `https://corsproxy.io/?${encodeURIComponent(SHEET_CSV)}`;
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const GLOBAL_PROJECT_URL = "https://www.inaturalist.org/projects/city-nature-challenge-2025-global-project";
+const NEARBY_KM = 500; // Maximum distance to consider a project "nearby" — prevents same-name cities on other continents from appearing as nearby results
 
 // ── State ────────────────────────────────────────────────────
 let allProjects = [];    // from Google Sheet
@@ -925,12 +926,16 @@ async function doSearch(query) {
   // Step 2: Text search sheet for direct matches
   const textMatches = searchSheet(query);
 
-  // Step 3: Geolocate matches instantly from sheet data
+  // Step 3: Geolocate matches instantly from sheet data, then filter to
+  // genuinely nearby results so same-name cities on other continents
+  // (e.g. Paris, Texas when searching from Paris, France) are excluded.
   const located = textMatches.slice(0, 8).map(p => {
     const loc = getProjectLocation(p, lat, lng);
     if (!loc) return null;
     return { project: p, lat: loc.lat, lng: loc.lng, dist: loc.dist, bbox: loc.bbox };
-  }).filter(Boolean).sort((a, b) => (a.dist || 0) - (b.dist || 0));
+  }).filter(Boolean)
+    .sort((a, b) => (a.dist || 0) - (b.dist || 0))
+    .filter(item => item.dist === null || item.dist <= NEARBY_KM);
 
   // Step 4: Render results and map
   clearMapLayers();
@@ -1253,12 +1258,15 @@ document.getElementById('locate-btn').addEventListener('click', () => {
         return;
       }
 
-      // Try to geolocate the sheet results so we can show distance + map pins
+      // Try to geolocate the sheet results so we can show distance + map pins.
+      // Filter to NEARBY_KM so same-name cities on other continents are excluded.
       const located = sheetResults.slice(0, 6).map(p => {
         const loc = getProjectLocation(p, lat, lng);
         if (!loc) return null;
         return { project: p, lat: loc.lat, lng: loc.lng, dist: loc.dist, bbox: loc.bbox };
-      }).filter(Boolean).sort((a, b) => (a.dist || 0) - (b.dist || 0));
+      }).filter(Boolean)
+        .sort((a, b) => (a.dist || 0) - (b.dist || 0))
+        .filter(item => item.dist === null || item.dist <= NEARBY_KM);
 
       if (located.length) {
         renderLocatedResults(located, placeparts[0] || placeName);
