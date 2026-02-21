@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Nature Challenge 2025 — Map Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-deep: #1a3a2a;
+    --green-mid: #2d6a4f;
+    --green-light: #52b788;
+    --green-pale: #d8f3dc;
+    --cream: #f8f4ee;
+    --sand: #e8e0d4;
+    --ink: #1a1a18;
+    --muted: #6b7160;
+    --accent: #e76f51;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 16px 24px;
+    background: var(--green-deep);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+
+  .header-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: white;
+    line-height: 1.2;
+  }
+
+  .header-title span {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--green-light);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  /* ── Search bar ── */
+  .search-wrap {
+    flex: 1;
+    position: relative;
+    max-width: 480px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--green-light);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  #search {
+    width: 100%;
+    padding: 11px 14px 11px 42px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    background: white;
+    border: none;
+    border-radius: 8px;
+    outline: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+
+  #search::placeholder { color: #aaa; }
+
+  /* Autocomplete dropdown */
+  #autocomplete {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 2000;
+    overflow: hidden;
+    display: none;
+  }
+
+  .ac-item {
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--ink);
+  }
+
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover { background: var(--green-pale); }
+  .ac-item .ac-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Layout: sidebar + map ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--cream);
+    border-right: 1px solid var(--sand);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-inner {
+    padding: 16px;
+    flex: 1;
+  }
+
+  #status {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 12px 0 8px;
+    min-height: 20px;
+  }
+
+  /* Result cards */
+  .result-card {
+    background: white;
+    border: 1.5px solid var(--sand);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    animation: fadeUp 0.2s ease both;
+  }
+
+  .result-card:hover, .result-card.active {
+    border-color: var(--green-light);
+    box-shadow: 0 4px 16px rgba(45,106,79,0.12);
+    transform: translateX(2px);
+  }
+
+  .result-card.active {
+    background: var(--green-pale);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px;
+    color: var(--green-deep);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .card-distance {
+    font-size: 12px;
+    color: var(--green-mid);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .card-aliases {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-join {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 12px;
+    background: var(--green-mid);
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .btn-join:hover { background: var(--green-deep); }
+
+  .btn-signup {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    background: var(--green-pale);
+    color: var(--green-mid);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .btn-signup:hover { background: var(--green-mid); color: white; }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--green-light);
+    margin: 16px 0 8px;
+  }
+
+  /* No results / global CTA */
+  .global-cta {
+    background: white;
+    border: 1.5px solid var(--sand);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .global-cta h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px;
+    color: var(--green-deep);
+    margin-bottom: 6px;
+  }
+
+  .global-cta p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .global-cta .btn-global {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--green-mid);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 7px;
+    transition: background 0.15s;
+  }
+
+  .global-cta .btn-global:hover { background: var(--green-deep); }
+
+  .global-cta .signup-link {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--green-mid);
+    text-decoration: none;
+  }
+
+  .global-cta .signup-link:hover { text-decoration: underline; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--muted);
+  }
+
+  .empty-state .big-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--green-deep);
+    margin-bottom: 8px;
+  }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* ── Map ── */
+  #map {
+    flex: 1;
+    z-index: 1;
+  }
+
+  /* Leaflet popup overrides */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  .leaflet-popup-content {
+    margin: 14px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .popup-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--green-deep);
+    margin-bottom: 4px;
+  }
+
+  .popup-aliases {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .popup-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .popup-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 7px 10px;
+    background: var(--green-mid);
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .popup-btn:hover { background: var(--green-deep); color: white; }
+  .popup-btn.secondary { background: var(--green-pale); color: var(--green-mid); }
+  .popup-btn.secondary:hover { background: var(--green-mid); color: white; }
+
+  /* Loading dots */
+  .dots span {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--green-light);
+    margin: 0 2px;
+    animation: bounce 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  mark {
+    background: rgba(82,183,136,0.3);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* Footer */
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--sand);
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer a { color: var(--green-mid); }
+
+  /* Locate button */
+  #locate-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  #locate-btn:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.35);
+  }
+
+  #locate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  #locate-btn svg {
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 700px) {
+    #locate-label { display: none; }
+    #locate-btn { padding: 10px 12px; }
+  }
+
+  /* ── Mobile: bottom sheet layout ── */
+  @media (max-width: 640px) {
+
+    /* Header collapses to just search + locate */
+    header {
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+
+    .header-title { display: none; }
+
+    .search-wrap { order: 1; flex: 1; min-width: 0; }
+
+    #locate-btn {
+      order: 2;
+      flex-shrink: 0;
+      padding: 10px 13px;
+    }
+
+    /* Map fills the screen */
+    .main {
+      position: relative;
+      flex-direction: column;
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Sheet slides up from bottom over the map */
+    #sidebar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: auto;
+      max-height: 75vh;
+      border-right: none;
+      border-top: 1px solid var(--sand);
+      border-radius: 16px 16px 0 0;
+      z-index: 10;
+      transform: translateY(calc(100% - 52px)); /* collapsed: show just handle */
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #sidebar.open {
+      transform: translateY(0);
+    }
+
+    /* Drag handle */
+    #sheet-handle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 16px 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+      background: white;
+      gap: 6px;
+    }
+
+    #sheet-handle-bar {
+      width: 36px;
+      height: 4px;
+      background: var(--sand);
+      border-radius: 2px;
+    }
+
+    #sheet-handle-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .sidebar-inner {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      padding: 4px 14px 16px;
+    }
+
+    /* Bigger tap targets on mobile */
+    .btn-join, .btn-signup {
+      padding: 11px 14px;
+      font-size: 13px;
+    }
+
+    .result-card { padding: 14px; }
+
+    /* Float locate button prominently on map when sheet is collapsed */
+    #mobile-locate-fab {
+      display: flex;
+      position: absolute;
+      bottom: 70px; /* just above sheet handle */
+      right: 16px;
+      z-index: 11;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      background: var(--green-deep);
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      border-radius: 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+
+    #mobile-locate-fab:hover { background: var(--green-mid); }
+    #mobile-locate-fab:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Hide desktop locate btn text on mobile (already icon-only) */
+    #locate-label { display: none; }
+  }
+
+  @media (min-width: 641px) {
+    #sheet-handle { display: none; }
+    #mobile-locate-fab { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <span>City Nature Challenge 2025</span>
+    Map Finder
+  </div>
+  <div class="search-wrap">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" id="search" placeholder="Search any city, neighborhood, or region…" autocomplete="off" spellcheck="false">
+    <div id="autocomplete"></div>
+  </div>
+  <button id="locate-btn" title="Use my location">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+    <span id="locate-label">Use my location</span>
+  </button>
+</header>
+
+<div class="main">
+  <div id="sidebar">
+    <div id="sheet-handle">
+      <div id="sheet-handle-bar"></div>
+      <div id="sheet-handle-label">Tap to see results</div>
+    </div>
+    <div class="sidebar-inner">
+      <div id="status"></div>
+      <div id="results">
+        <div class="empty-state">
+          <div class="big-icon">🌿</div>
+          <h3>Find your city</h3>
+          <p>Search any city or neighborhood above to see nearby City Nature Challenge projects on the map.</p>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      Data from <a href="https://www.inaturalist.org" target="_blank">iNaturalist</a> &amp; <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a> · <a href="https://www.citynaturechallenge.org" target="_blank">citynaturechallenge.org</a>
+    </div>
+  </div>
+  <div id="map"></div>
+  <button id="mobile-locate-fab" title="Use my location">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+    Use my location
+  </button>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSVqjsM-iOGXWhgTVh4XOVAZZszCA6Rw23xY30aYGLbq9F8gPWScQA2wCGunHKq38spxJxoru1qKop-/pub?output=csv";
+const SHEET_URL = `https://corsproxy.io/?${encodeURIComponent(SHEET_CSV)}`;
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const GLOBAL_PROJECT_URL = "https://www.inaturalist.org/projects/city-nature-challenge-2025-global-project";
+
+// ── State ────────────────────────────────────────────────────
+let allProjects = [];    // from Google Sheet
+let markers = [];        // Leaflet markers currently on map
+let circles = [];        // Leaflet circles currently on map
+let activeCard = null;
+let searchTimeout;
+let geocodeTimeout;
+let currentLat = null;
+let currentLng = null;
+
+// ── Map setup ────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [20, 0],
+  zoom: 2,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// Custom marker icon
+function makeIcon(color = '#2d6a4f', active = false) {
+  const size = active ? 14 : 11;
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      border-radius:50%;
+      background:${color};
+      border:2px solid white;
+      box-shadow:0 1px 4px rgba(0,0,0,0.3);
+      transition:all 0.15s;
+    "></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+}
+
+// Search pin (user location)
+function makeSearchPin() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;
+      border-radius:50%;
+      background:#e76f51;
+      border:3px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
+let searchPinMarker = null;
+
+// ── CSV parsing ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  }).filter(r => r['Project Title']);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ── Load sheet data ──────────────────────────────────────────
+async function loadSheetData() {
+  try {
+    const res = await fetch(SHEET_URL);
+    const text = await res.text();
+    allProjects = parseCSV(text);
+    setStatus(`${allProjects.length} city projects loaded. Search any city to begin.`);
+  } catch (e) {
+    setStatus('⚠️ Could not load project data. Try refreshing.');
+  }
+}
+
+// ── Geocoding via Nominatim ──────────────────────────────────
+async function geocode(query) {
+  const params = new URLSearchParams({
+    q: query,
+    format: 'json',
+    limit: 5,
+    addressdetails: 1,
+  });
+  const url = `${NOMINATIM_URL}?${params}`;
+  const proxied = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  const res = await fetch(proxied, { headers: { 'Accept-Language': 'en' } });
+  return res.json();
+}
+
+// ── Get project location from sheet data ─────────────────────
+function getProjectLocation(project, userLat, userLng) {
+  const lat = parseFloat(project['Latitude']);
+  const lng = parseFloat(project['Longitude']);
+  if (isNaN(lat) || isNaN(lng)) return null;
+
+  // Parse bbox from compact [[swLng,swLat],[neLng,neLat]] format
+  // and convert to GeoJSON Polygon for drawing
+  let bbox = null;
+  const bboxRaw = project['Bounding Box'];
+  if (bboxRaw) {
+    try {
+      const [[swLng, swLat], [neLng, neLat]] = JSON.parse(bboxRaw);
+      bbox = {
+        type: 'Polygon',
+        coordinates: [[
+          [swLng, swLat],
+          [neLng, swLat],
+          [neLng, neLat],
+          [swLng, neLat],
+          [swLng, swLat],
+        ]]
+      };
+    } catch(e) {}
+  }
+
+  const dist = (userLat != null && userLng != null)
+    ? haversine(userLat, userLng, lat, lng)
+    : null;
+
+  return { lat, lng, bbox, dist };
+}
+
+// ── Text search against sheet ────────────────────────────────
+function searchSheet(query) {
+  const q = query.toLowerCase().trim();
+  if (q.length < 2) return [];
+  const results = [];
+
+  for (const p of allProjects) {
+    const title = (p['Project Title'] || '').toLowerCase();
+    const aliases = (p['City Aliases'] || '').toLowerCase();
+    const combined = title + ' ' + aliases;
+    let score = 0;
+    if (combined.includes(q)) score += 2;
+    if (title.includes(q)) score += 1;
+    const wb = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+    if (wb.test(combined)) score += 1;
+    if (score > 0) results.push({ project: p, score });
+  }
+
+  return results.sort((a, b) => b.score - a.score).slice(0, 8).map(r => r.project);
+}
+
+// ── Haversine distance (km) ──────────────────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── Clear map layers ─────────────────────────────────────────
+function clearMapLayers() {
+  markers.forEach(m => map.removeLayer(m));
+  circles.forEach(c => map.removeLayer(c));
+  markers = [];
+  circles = [];
+}
+
+// ── Place a project on the map ────────────────────────────────
+function addProjectToMap(project, lat, lng, isActive = false, distanceKm = null, bbox = null) {
+  const title = (project['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+  const aliases = project['City Aliases'] || '';
+  const url = project['iNaturalist URL'] || '#';
+
+  const aliasPreview = aliases.split(',').slice(0, 4).join(', ');
+  const distLabel = distanceKm !== null ? `<div style="font-size:12px;color:#2d6a4f;font-weight:500;margin-bottom:6px;">${Math.round(distanceKm)} km away</div>` : '';
+
+  const popupHtml = `
+    <div class="popup-title">${title}</div>
+    ${distLabel}
+    ${aliasPreview ? `<div class="popup-aliases">Covers: ${aliasPreview}</div>` : ''}
+    <div class="popup-actions">
+      <a href="${url}" target="_blank" class="popup-btn">Join project ↗</a>
+      <a href="https://www.inaturalist.org/signup" target="_blank" class="popup-btn secondary">Create account</a>
+    </div>`;
+
+  const marker = L.marker([lat, lng], { icon: makeIcon('#2d6a4f', isActive) })
+    .bindPopup(popupHtml, { maxWidth: 260 })
+    .addTo(map);
+
+  if (isActive) marker.openPopup();
+
+  // Draw bounding box if available, otherwise fall back to circle
+  if (bbox && bbox.type === 'Polygon' && bbox.coordinates?.[0]) {
+    // iNat returns [lng, lat] pairs — Leaflet wants [lat, lng]
+    const latlngs = bbox.coordinates[0].map(([lng, lat]) => [lat, lng]);
+    const rect = L.polygon(latlngs, {
+      color: isActive ? '#2d6a4f' : '#52b788',
+      fillColor: isActive ? '#52b788' : '#95d5b2',
+      fillOpacity: isActive ? 0.12 : 0.06,
+      weight: isActive ? 2 : 1,
+      dashArray: isActive ? null : '4 4',
+    }).bindPopup(popupHtml, { maxWidth: 260 }).addTo(map);
+    circles.push(rect);
+  } else {
+    // Fallback circle when no bbox data
+    const circle = L.circle([lat, lng], {
+      radius: 25000,
+      color: isActive ? '#2d6a4f' : '#52b788',
+      fillColor: '#52b788',
+      fillOpacity: isActive ? 0.1 : 0.05,
+      weight: isActive ? 2 : 1,
+      dashArray: isActive ? null : '4 4',
+    }).bindPopup(popupHtml, { maxWidth: 260 }).addTo(map);
+    circles.push(circle);
+  }
+
+  markers.push(marker);
+  return marker;
+}
+
+// ── Main search handler ───────────────────────────────────────
+async function doSearch(query) {
+  if (!query || query.length < 2) {
+    clearMapLayers();
+    renderEmpty();
+    return;
+  }
+
+  setStatus('<div class="dots"><span></span><span></span><span></span></div>');
+  document.getElementById('results').innerHTML = '';
+
+  // Step 1: Geocode the query
+  let geoResults = [];
+  try {
+    geoResults = await geocode(query);
+  } catch(e) {}
+
+  if (!geoResults.length) {
+    // Fall back to text-only sheet search
+    const sheetResults = searchSheet(query);
+    renderTextResults(sheetResults, query);
+    return;
+  }
+
+  const best = geoResults[0];
+  const lat = parseFloat(best.lat);
+  const lng = parseFloat(best.lon);
+  currentLat = lat;
+  currentLng = lng;
+
+  // Place search pin
+  if (searchPinMarker) map.removeLayer(searchPinMarker);
+  searchPinMarker = L.marker([lat, lng], { icon: makeSearchPin() })
+    .bindTooltip(best.display_name, { permanent: false })
+    .addTo(map);
+
+  // Step 2: Text search sheet for direct matches
+  const textMatches = searchSheet(query);
+
+  // Step 3: Geolocate matches instantly from sheet data
+  const located = textMatches.slice(0, 8).map(p => {
+    const loc = getProjectLocation(p, lat, lng);
+    if (!loc) return null;
+    return { project: p, lat: loc.lat, lng: loc.lng, dist: loc.dist, bbox: loc.bbox };
+  }).filter(Boolean).sort((a, b) => (a.dist || 0) - (b.dist || 0));
+
+  // Step 4: Render results and map
+  clearMapLayers();
+
+  if (!located.length) {
+    // No geolocated results — show text results + global CTA
+    renderNoGeoResults(textMatches, query, lat, lng, best.display_name);
+    map.setView([lat, lng], 8);
+    return;
+  }
+
+  // Render sidebar cards
+  renderLocatedResults(located, query);
+
+  // Add to map
+  const bounds = [];
+  located.forEach((item, i) => {
+    addProjectToMap(item.project, item.lat, item.lng, i === 0, item.dist, item.bbox);
+    if (item.bbox?.coordinates?.[0]) {
+      item.bbox.coordinates[0].forEach(([lng, lat]) => bounds.push([lat, lng]));
+    } else {
+      bounds.push([item.lat, item.lng]);
+    }
+  });
+
+  bounds.push([lat, lng]);
+
+  if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+  } else {
+    map.setView([lat, lng], 8);
+  }
+
+  setStatus(`${located.length} project${located.length !== 1 ? 's' : ''} near ${best.display_name.split(',')[0]}`);
+}
+
+// ── Render functions ──────────────────────────────────────────
+function setStatus(html) {
+  document.getElementById('status').innerHTML = html;
+}
+
+function renderEmpty() {
+  document.getElementById('results').innerHTML = `
+    <div class="empty-state">
+      <div class="big-icon">🌿</div>
+      <h3>Find your city</h3>
+      <p>Search any city or neighborhood above to see nearby City Nature Challenge projects on the map.</p>
+    </div>`;
+  setStatus('');
+}
+
+function renderLocatedResults(located, query) {
+  const el = document.getElementById('results');
+  const hasExact = located[0]?.dist < 50;
+
+  let html = '';
+
+  if (hasExact) {
+    html += `<div class="section-label">Your area</div>`;
+    html += renderCard(located[0], query, 0, true);
+    if (located.length > 1) {
+      html += `<div class="section-label" style="margin-top:16px;">Nearby projects</div>`;
+      located.slice(1).forEach((item, i) => {
+        html += renderCard(item, query, i + 1, false);
+      });
+    }
+  } else {
+    html += `<div class="section-label">Closest projects to your search</div>`;
+    located.forEach((item, i) => {
+      html += renderCard(item, query, i, false);
+    });
+    html += globalCTAHtml('Your exact city may not have its own project yet.');
+  }
+
+  el.innerHTML = html;
+  autoOpenSheet();
+
+  // Attach click handlers
+  el.querySelectorAll('.result-card').forEach((card, i) => {
+    card.addEventListener('click', () => {
+      el.querySelectorAll('.result-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      const item = located[i];
+      map.setView([item.lat, item.lng], 10);
+      markers[i]?.openPopup();
+    });
+  });
+}
+
+function renderCard(item, query, index, isFirst) {
+  const title = (item.project['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+  const aliases = item.project['City Aliases'] || '';
+  const url = item.project['iNaturalist URL'] || '#';
+  const distStr = item.dist < 1 ? 'Within your area' : `~${Math.round(item.dist)} km away`;
+  const aliasPreview = aliases.split(',').slice(0, 5).join(', ');
+
+  return `
+    <div class="result-card${isFirst ? ' active' : ''}" data-index="${index}" style="animation-delay:${index * 0.05}s">
+      <div class="card-title">${highlight(title, query)}</div>
+      <div class="card-distance">${distStr}</div>
+      ${aliasPreview ? `<div class="card-aliases">Covers: ${highlight(aliasPreview, query)}</div>` : ''}
+      <div class="card-actions">
+        <a href="${url}" target="_blank" class="btn-join" onclick="event.stopPropagation()">
+          Join project ↗
+        </a>
+        <a href="https://www.inaturalist.org/signup" target="_blank" class="btn-signup" onclick="event.stopPropagation()">
+          Create account
+        </a>
+      </div>
+    </div>`;
+}
+
+function renderTextResults(results, query) {
+  const el = document.getElementById('results');
+  if (!results.length) {
+    el.innerHTML = `<div style="font-size:14px;color:var(--muted);padding:8px 0 16px;">No matching projects found for <strong>"${query}"</strong>.</div>` + globalCTAHtml();
+    setStatus('');
+    return;
+  }
+
+  let html = `<div class="section-label">Matching projects</div>`;
+  results.forEach((p, i) => {
+    const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+    const aliases = p['City Aliases'] || '';
+    const url = p['iNaturalist URL'] || '#';
+    const aliasPreview = aliases.split(',').slice(0, 5).join(', ');
+
+    html += `
+      <div class="result-card" style="animation-delay:${i*0.05}s">
+        <div class="card-title">${highlight(title, query)}</div>
+        ${aliasPreview ? `<div class="card-aliases">Covers: ${highlight(aliasPreview, query)}</div>` : ''}
+        <div class="card-actions">
+          <a href="${url}" target="_blank" class="btn-join" onclick="event.stopPropagation()">Join project ↗</a>
+          <a href="https://www.inaturalist.org/signup" target="_blank" class="btn-signup" onclick="event.stopPropagation()">Create account</a>
+        </div>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+  autoOpenSheet();
+  setStatus(`${results.length} result${results.length !== 1 ? 's' : ''} found`);
+}
+
+function renderNoGeoResults(textMatches, query, lat, lng, placeName) {
+  const el = document.getElementById('results');
+  let html = `<div style="font-size:13px;color:var(--muted);padding:4px 0 12px;line-height:1.5;">
+    No City Nature Challenge projects found near <strong>${placeName.split(',')[0]}</strong>.
+  </div>`;
+
+  if (textMatches.length) {
+    html += `<div class="section-label">Possible matches by name</div>`;
+    textMatches.slice(0, 4).forEach((p, i) => {
+      const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+      const url = p['iNaturalist URL'] || '#';
+      html += `
+        <div class="result-card" style="animation-delay:${i*0.05}s">
+          <div class="card-title">${highlight(title, query)}</div>
+          <div class="card-actions">
+            <a href="${url}" target="_blank" class="btn-join" onclick="event.stopPropagation()">Join project ↗</a>
+            <a href="https://www.inaturalist.org/signup" target="_blank" class="btn-signup" onclick="event.stopPropagation()">Create account</a>
+          </div>
+        </div>`;
+    });
+  }
+
+  html += globalCTAHtml('Your city may not have a local project yet.');
+  el.innerHTML = html;
+  autoOpenSheet();
+  setStatus(`No local project found near ${placeName.split(',')[0]}`);
+}
+
+function globalCTAHtml(reason = '') {
+  return `
+    <div class="global-cta">
+      <h3>Join Globally</h3>
+      <p>${reason ? reason + ' ' : ''}No matter where you are, you can participate by joining the global project.</p>
+      <a href="${GLOBAL_PROJECT_URL}" target="_blank" class="btn-global">
+        Join the Global Project ↗
+      </a>
+      <a href="https://www.inaturalist.org/signup" target="_blank" class="signup-link">
+        New to iNaturalist? Create a free account →
+      </a>
+    </div>`;
+}
+
+function highlight(text, query) {
+  if (!query || query.length < 2) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+// ── Autocomplete ──────────────────────────────────────────────
+const acEl = document.getElementById('autocomplete');
+
+async function showAutocomplete(query) {
+  if (query.length < 3) { acEl.style.display = 'none'; return; }
+  try {
+    const results = await geocode(query);
+    if (!results.length) { acEl.style.display = 'none'; return; }
+    acEl.innerHTML = results.slice(0, 5).map(r => {
+      const parts = r.display_name.split(', ');
+      const main = parts[0];
+      const sub = parts.slice(1, 3).join(', ');
+      return `<div class="ac-item" data-lat="${r.lat}" data-lng="${r.lon}" data-name="${r.display_name}">
+        ${main}
+        ${sub ? `<div class="ac-sub">${sub}</div>` : ''}
+      </div>`;
+    }).join('');
+    acEl.style.display = 'block';
+
+    acEl.querySelectorAll('.ac-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const name = item.dataset.name;
+        document.getElementById('search').value = name.split(',')[0];
+        acEl.style.display = 'none';
+        doSearch(name.split(',')[0]);
+      });
+    });
+  } catch(e) {
+    acEl.style.display = 'none';
+  }
+}
+
+// ── Event listeners ───────────────────────────────────────────
+document.getElementById('search').addEventListener('input', e => {
+  const query = e.target.value.trim();
+  clearTimeout(geocodeTimeout);
+  clearTimeout(searchTimeout);
+
+  if (query.length >= 3) {
+    geocodeTimeout = setTimeout(() => showAutocomplete(query), 300);
+  } else {
+    acEl.style.display = 'none';
+  }
+
+  searchTimeout = setTimeout(() => doSearch(query), 600);
+});
+
+document.getElementById('search').addEventListener('keydown', e => {
+  if (e.key === 'Escape') acEl.style.display = 'none';
+  if (e.key === 'Enter') {
+    acEl.style.display = 'none';
+    clearTimeout(searchTimeout);
+    doSearch(e.target.value.trim());
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) acEl.style.display = 'none';
+});
+
+// ── Use My Location ───────────────────────────────────────────
+document.getElementById('locate-btn').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  const btn = document.getElementById('locate-btn');
+  const label = document.getElementById('locate-label');
+  btn.disabled = true;
+  label.textContent = 'Locating…';
+  setStatus('<div class="dots"><span></span><span></span><span></span></div> Finding your location…');
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude: lat, longitude: lng } = position.coords;
+      btn.disabled = false;
+      label.textContent = 'Use my location';
+
+      // Reverse geocode to get a place name
+      let placeName = 'your location';
+      let placeparts = [];
+      try {
+        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`;
+        const proxied = `https://corsproxy.io/?${encodeURIComponent(reverseUrl)}`;
+        const res = await fetch(proxied, { headers: { 'Accept-Language': 'en' } });
+        const data = await res.json();
+        if (data.address) {
+          // Pull the most useful name parts: city/town/suburb + state
+          const a = data.address;
+          const city = a.city || a.town || a.village || a.suburb || a.county || '';
+          const state = a.state || '';
+          placeparts = [city, a.county, state].filter(Boolean);
+          placeName = [city, state].filter(Boolean).join(', ') || data.display_name.split(',')[0];
+          document.getElementById('search').value = city || placeName;
+        }
+      } catch(e) {}
+
+      // Place search pin
+      if (searchPinMarker) map.removeLayer(searchPinMarker);
+      searchPinMarker = L.marker([lat, lng], { icon: makeSearchPin() })
+        .bindTooltip(placeName, { permanent: false })
+        .addTo(map);
+
+      map.setView([lat, lng], 9);
+      currentLat = lat;
+      currentLng = lng;
+
+      // Use the reverse-geocoded place name to search the sheet —
+      // same reliable path as typing. Try city name first, then broader area.
+      setStatus('<div class="dots"><span></span><span></span><span></span></div> Finding nearby projects…');
+      document.getElementById('results').innerHTML = '';
+
+      // Build search terms from structured address parts (most → least specific)
+      const searchTerms = [...new Set(placeparts.filter(p => p.length > 1))];
+
+      // Try each term until we get results
+      let sheetResults = [];
+      for (const term of searchTerms) {
+        if (term.length < 2) continue;
+        sheetResults = searchSheet(term);
+        if (sheetResults.length) break;
+      }
+
+      clearMapLayers();
+
+      if (!sheetResults.length) {
+        renderNoGeoResults([], placeName, lat, lng, placeName);
+        return;
+      }
+
+      // Try to geolocate the sheet results so we can show distance + map pins
+      const located = sheetResults.slice(0, 6).map(p => {
+        const loc = getProjectLocation(p, lat, lng);
+        if (!loc) return null;
+        return { project: p, lat: loc.lat, lng: loc.lng, dist: loc.dist, bbox: loc.bbox };
+      }).filter(Boolean).sort((a, b) => (a.dist || 0) - (b.dist || 0));
+
+      if (located.length) {
+        renderLocatedResults(located, placeparts[0] || placeName);
+        const bounds = [[lat, lng]];
+        located.forEach((item, i) => {
+          addProjectToMap(item.project, item.lat, item.lng, i === 0, item.dist, item.bbox);
+          bounds.push([item.lat, item.lng]);
+        });
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+        setStatus(`${located.length} project${located.length !== 1 ? 's' : ''} near ${placeparts[0] || placeName}`);
+      } else {
+        // Sheet results found but couldn't geolocate — show as text cards
+        renderTextResults(sheetResults, placeparts[0] || placeName);
+        setStatus(`${sheetResults.length} result${sheetResults.length !== 1 ? 's' : ''} near ${placeparts[0] || placeName}`);
+      }
+    },
+    (err) => {
+      btn.disabled = false;
+      label.textContent = 'Use my location';
+      const messages = {
+        1: 'Location access was denied. Please allow location access in your browser settings, or search by city name.',
+        2: 'Your location could not be determined. Try moving to a spot with better signal, or search by city name.',
+        3: 'Location request timed out — this can happen indoors or with poor signal. Try again outside, or search by city name.',
+      };
+      setStatus(`⚠️ ${messages[err.code] || 'Could not get your location.'}`);
+    },
+    { timeout: 30000, maximumAge: 120000, enableHighAccuracy: false }
+  );
+});
+
+// ── Mobile sheet behavior ─────────────────────────────────────
+const sidebar = document.getElementById('sidebar');
+const sheetHandle = document.getElementById('sheet-handle');
+const sheetLabel = document.getElementById('sheet-handle-label');
+const mobileFab = document.getElementById('mobile-locate-fab');
+
+function isMobile() { return window.innerWidth <= 640; }
+
+function openSheet() {
+  sidebar.classList.add('open');
+  sheetLabel.textContent = 'Tap to collapse';
+}
+
+function closeSheet() {
+  sidebar.classList.remove('open');
+  sheetLabel.textContent = 'Tap to see results';
+}
+
+function toggleSheet() {
+  sidebar.classList.contains('open') ? closeSheet() : openSheet();
+}
+
+sheetHandle?.addEventListener('click', toggleSheet);
+
+// Auto-open sheet when results come in on mobile
+function autoOpenSheet() {
+  if (isMobile()) openSheet();
+}
+
+// Mobile FAB mirrors the header locate button
+mobileFab?.addEventListener('click', () => {
+  document.getElementById('locate-btn').click();
+});
+
+// Close sheet when tapping the map on mobile
+document.getElementById('map').addEventListener('click', () => {
+  if (isMobile()) closeSheet();
+});
+
+// Update sheet label dynamically
+function updateSheetLabel(text) {
+  if (sheetLabel && sidebar.classList.contains('open')) {
+    sheetLabel.textContent = text || 'Tap to collapse';
+  } else if (sheetLabel) {
+    sheetLabel.textContent = text || 'Tap to see results';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+setStatus('<div class="dots"><span></span><span></span><span></span></div> Loading project data…');
+loadSheetData();
+</script>
+</body>
+</html>
