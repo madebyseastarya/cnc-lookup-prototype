@@ -715,7 +715,7 @@ function parseCSV(text) {
     const obj = {};
     headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
     return obj;
-  }).filter(r => r['Project Title']);
+  }).filter(r => r['Display Name'] || r['Project Title']);
 }
 
 function parseCSVLine(line) {
@@ -803,12 +803,13 @@ function searchSheet(query) {
   const results = [];
 
   for (const p of allProjects) {
+    const displayName = (p['Display Name'] || '').toLowerCase();
     const title = (p['Project Title'] || '').toLowerCase();
     const aliases = (p['City Aliases'] || '').toLowerCase();
-    const combined = title + ' ' + aliases;
+    const combined = displayName + ' ' + title + ' ' + aliases;
     let score = 0;
     if (combined.includes(q)) score += 2;
-    if (title.includes(q)) score += 1;
+    if (displayName.includes(q)) score += 1;
     const wb = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
     if (wb.test(combined)) score += 1;
     if (score > 0) results.push({ project: p, score });
@@ -836,9 +837,9 @@ function clearMapLayers() {
 
 // ── Place a project on the map ────────────────────────────────
 function addProjectToMap(project, lat, lng, isActive = false, distanceKm = null, bbox = null) {
-  const title = (project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
+  const title = (project['Display Name'] || project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
   const aliases = project['City Aliases'] || '';
-  const url = project['iNaturalist URL'] || '#';
+  const url = project['Project Link'] || project['iNaturalist URL'] || '#';
 
   const aliasPreview = aliases.split(',').slice(0, 4).join(', ');
   const distLabel = distanceKm !== null ? `<div style="font-size:12px;color:#2d6a4f;font-weight:500;margin-bottom:6px;">${Math.round(distanceKm)} km away</div>` : '';
@@ -1026,9 +1027,9 @@ function renderLocatedResults(located, query) {
 }
 
 function renderCard(item, query, index, isFirst) {
-  const title = (item.project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
+  const title = (item.project['Display Name'] || item.project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
   const aliases = item.project['City Aliases'] || '';
-  const url = item.project['iNaturalist URL'] || '#';
+  const url = item.project['Project Link'] || item.project['iNaturalist URL'] || '#';
   const distStr = item.dist < 1 ? 'Within your area' : `~${Math.round(item.dist)} km away`;
   const aliasPreview = aliases.split(',').slice(0, 5).join(', ');
 
@@ -1058,9 +1059,9 @@ function renderTextResults(results, query) {
 
   let html = `<div class="section-label">Matching projects</div>`;
   results.forEach((p, i) => {
-    const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
+    const title = (p['Display Name'] || p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
     const aliases = p['City Aliases'] || '';
-    const url = p['iNaturalist URL'] || '#';
+    const url = p['Project Link'] || p['iNaturalist URL'] || '#';
     const aliasPreview = aliases.split(',').slice(0, 5).join(', ');
 
     html += `
@@ -1088,8 +1089,8 @@ function renderNoGeoResults(textMatches, query, lat, lng, placeName) {
   if (textMatches.length) {
     html += `<div class="section-label">Possible matches by name</div>`;
     textMatches.slice(0, 4).forEach((p, i) => {
-      const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
-      const url = p['iNaturalist URL'] || '#';
+      const title = (p['Display Name'] || p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
+      const url = p['Project Link'] || p['iNaturalist URL'] || '#';
       html += `
         <div class="result-card" style="animation-delay:${i*0.05}s">
           <div class="card-title">${highlight(title, query)}</div>
