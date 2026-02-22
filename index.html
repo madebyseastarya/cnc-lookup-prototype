@@ -433,7 +433,7 @@ function parseCSV(text) {
     const obj = {};
     headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
     return obj;
-  }).filter(r => r['Project Title']);
+  }).filter(r => r['Display Name'] || r['Project Title']);
 }
 
 function parseCSVLine(line) {
@@ -462,14 +462,15 @@ function search(query) {
   const results = [];
 
   for (const p of allProjects) {
+    const displayName = (p['Display Name'] || '').toLowerCase();
     const title = (p['Project Title'] || '').toLowerCase();
     const aliases = (p['City Aliases'] || '').toLowerCase();
-    const combined = title + ' ' + aliases;
+    const combined = displayName + ' ' + title + ' ' + aliases;
 
     // Score: exact word match scores higher than partial
     let score = 0;
     if (combined.includes(q)) score += 2;
-    if (title.includes(q)) score += 1;
+    if (displayName.includes(q)) score += 1;
     // Word boundary match
     const wordBoundary = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
     if (wordBoundary.test(combined)) score += 1;
@@ -525,9 +526,9 @@ function renderResults(results, query) {
   status.innerHTML = `<span style="font-size:14px;color:var(--muted);">${results.length} result${results.length !== 1 ? 's' : ''} found</span>`;
 
   el.innerHTML = results.map((p, i) => {
-    const title = p['Project Title'].replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
+    const title = (p['Display Name'] || p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
     const aliases = p['City Aliases'] || '';
-    const url = p['iNaturalist URL'] || '#';
+    const url = p['Project Link'] || p['iNaturalist URL'] || '#';
 
     // Show matching aliases
     let aliasHtml = '';
