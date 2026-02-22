@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>City Nature Challenge 2025 — Map Finder</title>
+<title>City Nature Challenge 2026 — Map Finder</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -585,7 +585,7 @@
 
 <header>
   <div class="header-title">
-    <span>City Nature Challenge 2025</span>
+    <span>City Nature Challenge 2026</span>
     Map Finder
   </div>
   <div class="search-wrap">
@@ -642,10 +642,10 @@
 
 <script>
 // ── Config ──────────────────────────────────────────────────
-const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSVqjsM-iOGXWhgTVh4XOVAZZszCA6Rw23xY30aYGLbq9F8gPWScQA2wCGunHKq38spxJxoru1qKop-/pub?output=csv";
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAP6XT3l_OTahfm37OtDSHXVPNVjxc1XzgmswVzGBdxBViVdXm-Zpb5eh_K3E3Lgjs9Ye_r8QVsr4e/pub?gid=99747144&single=true&output=csv";
 const SHEET_URL = `https://corsproxy.io/?${encodeURIComponent(SHEET_CSV)}`;
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const GLOBAL_PROJECT_URL = "https://www.inaturalist.org/projects/city-nature-challenge-2025-global-project";
+const GLOBAL_PROJECT_URL = "https://www.inaturalist.org/projects/city-nature-challenge-2026-global-project";
 const NEARBY_KM = 500; // Maximum distance to consider a project "nearby" — prevents same-name cities on other continents from appearing as nearby results
 
 // ── State ────────────────────────────────────────────────────
@@ -836,7 +836,7 @@ function clearMapLayers() {
 
 // ── Place a project on the map ────────────────────────────────
 function addProjectToMap(project, lat, lng, isActive = false, distanceKm = null, bbox = null) {
-  const title = (project['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+  const title = (project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
   const aliases = project['City Aliases'] || '';
   const url = project['iNaturalist URL'] || '#';
 
@@ -1026,7 +1026,7 @@ function renderLocatedResults(located, query) {
 }
 
 function renderCard(item, query, index, isFirst) {
-  const title = (item.project['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+  const title = (item.project['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
   const aliases = item.project['City Aliases'] || '';
   const url = item.project['iNaturalist URL'] || '#';
   const distStr = item.dist < 1 ? 'Within your area' : `~${Math.round(item.dist)} km away`;
@@ -1058,7 +1058,7 @@ function renderTextResults(results, query) {
 
   let html = `<div class="section-label">Matching projects</div>`;
   results.forEach((p, i) => {
-    const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+    const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
     const aliases = p['City Aliases'] || '';
     const url = p['iNaturalist URL'] || '#';
     const aliasPreview = aliases.split(',').slice(0, 5).join(', ');
@@ -1088,7 +1088,7 @@ function renderNoGeoResults(textMatches, query, lat, lng, placeName) {
   if (textMatches.length) {
     html += `<div class="section-label">Possible matches by name</div>`;
     textMatches.slice(0, 4).forEach((p, i) => {
-      const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2025\s*[:\-]\s*/i, '').trim();
+      const title = (p['Project Title'] || '').replace(/^City Nature Challenge 2026\s*[:\-]\s*/i, '').trim();
       const url = p['iNaturalist URL'] || '#';
       html += `
         <div class="result-card" style="animation-delay:${i*0.05}s">
